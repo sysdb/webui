@@ -44,8 +44,11 @@ import (
 
 // A Config specifies configuration values for a SysDB web server.
 type Config struct {
-	// Conn specifies a connection to a SysDB server instance.
-	Conn *client.Conn
+	// Conns is a slice of connections to a SysDB server instance. The number of
+	// elements specifies the maximum number of parallel queries to the backend.
+	// Note that a client connection is not thread-safe but multiple idle
+	// connections don't impose any load on the server.
+	Conns []*client.Conn
 
 	// TemplatePath specifies the relative or absolute location of template files.
 	TemplatePath string
@@ -56,7 +59,7 @@ type Config struct {
 
 // A Server implements an http.Handler that serves the SysDB user interface.
 type Server struct {
-	c *client.Conn
+	conns chan *client.Conn
 
 	// Templates:
 	main    *template.Template
@@ -68,7 +71,17 @@ type Server struct {
 
 // New constructs a new SysDB web server using the specified configuration.
 func New(cfg Config) (*Server, error) {
-	s := &Server{c: cfg.Conn, results: make(map[string]*template.Template)}
+	if len(cfg.Conns) == 0 {
+		return nil, errors.New("need at least one client connection")
+	}
+
+	s := &Server{
+		conns:   make(chan *client.Conn, len(cfg.Conns)),
+		results: make(map[string]*template.Template),
+	}
+	for _, c := range cfg.Conns {
+		s.conns <- c
+	}
 
 	var err error
 	s.main, err = cfg.parse("main.tmpl")
@@ -251,16 +264,19 @@ func html(s string) template.HTML {
 }
 
 func (s *Server) query(cmd string) (interface{}, error) {
+	c := <-s.conns
+	defer func() { s.conns <- c }()
+
 	m := &proto.Message{
 		Type: proto.ConnectionQuery,
 		Raw:  []byte(cmd),
 	}
-	if err := s.c.Send(m); err != nil {
+	if err := c.Send(m); err != nil {
 		return nil, fmt.Errorf("Query %q: %v", cmd, err)
 	}
 
 	for {
-		m, err := s.c.Receive()
+		m, err := c.Receive()
 		if err != nil {
 			return nil, fmt.Errorf("Failed to receive server response: %v", err)
 		}

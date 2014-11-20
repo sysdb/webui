@@ -50,13 +50,17 @@ func main() {
 	flag.Parse()
 
 	log.Printf("Connecting to SysDB at %s.", *addr)
-	conn, err := client.Connect(*addr, *user)
-	if err != nil {
-		fatalf("Failed to connect to SysDB at %q: %v", *addr, err)
+	var conns []*client.Conn
+	for i := 0; i < 10; i++ {
+		conn, err := client.Connect(*addr, *user)
+		if err != nil {
+			fatalf("Failed to connect to SysDB at %q: %v", *addr, err)
+		}
+		conns = append(conns, conn)
 	}
 
 	srv, err := server.New(server.Config{
-		Conn:         conn,
+		Conns:        conns,
 		TemplatePath: *tmpl,
 		StaticPath:   *static,
 	})
