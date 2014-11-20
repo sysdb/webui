@@ -1,0 +1,18 @@
+<section>{{$m := index .Metrics 0}}
+	<h1>Metric {{$.Name}} &mdash; {{$m.Name}}</h1>
+	<table class="results">
+		<tr><td><b>Host</b></td><td><a href="/host/{{urlquery $.Name}}">{{$.Name}}</a></td></tr>
+		<tr><td><b>Last update</b></td><td>{{$m.LastUpdate}}</td></tr>
+		<tr><td><b>Update interval</b></td><td>{{$m.UpdateInterval}}</td></tr>
+		<tr><td><b>Backends</b></td><td>{{$m.Backends}}</td></tr>
+{{if len $m.Attributes}}
+		<tr><th colspan="2">Attributes</th></tr>
+	{{range $m.Attributes}}
+		<tr><td>{{.Name}}</td><td>{{.Value}}</td></tr>
+	{{end}}
+{{else}}
+		<tr><th colspan="2">No attributes</th></tr>
+{{end}}
+	</table>
+	<p>&nbsp;</p>
+</section>

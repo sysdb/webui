@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      itemscope itemtype="http://schema.org/Product">
+<head>
+	<title>{{.Title}}</title>
+
+	<meta name="author" content="Copyright (C) 2014 Sebastian ‘tokkee’ Harl" />
+	<meta itemprop="name" content="SysDB">
+	<meta itemprop="description" content="The System Database">
+
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+	<link rel="stylesheet" href="/style/main.css" type="text/css" />
+	<link rel="icon" href="/images/favicon.png" type="images/png" />
+</head>
+
+<body>
+	<header>
+		<div class="topmenu">
+			<a href="https://sysdb.io">SysDB</a>
+		</div>
+		<div class="searchbar">
+			<div class="logo">
+				<a href="/"><img src="/images/owl.png" alt="[SysDB]" class="logo" /></a>
+			</div>
+
+			<div class="searchbox">
+				<form action="/lookup" method="POST">
+					<input type="text" name="query" value="{{.Query}}" placeholder="Search hosts"
+						required /><button type="submit">GO</button>
+				</form>
+			</div>
+		</div>
+	</header>
+
+	<div class="main">
+		<aside><nav>
+			<a href="/hosts">Hosts</a>
+			<a href="/services">Services</a>
+			<a href="/metrics">Metrics</a>
+		</nav></aside>
+
+		<div class="content">
+{{.Content}}
+		</div>
+	</div>
+</body>
+</html>

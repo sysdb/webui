@@ -1,0 +1,18 @@
+<section>
+	<h1>Metrics</h1>
+{{if len .}}
+	<table class="results">
+		<tr><th>Host</th><th>Metric</th><th>Last update</th></tr>
+	{{range $h := .}}
+		{{range $i, $m := $h.Metrics}}
+		{{if not $i}}
+		<tr><td rowspan="{{len $h.Metrics}}"><a href="/host/{{urlquery $h.Name}}">{{$h.Name}}</a></td><td><a href="/metric/{{urlquery $h.Name}}/{{urlquery $m.Name}}">{{$m.Name}}</a></td><td>{{$m.LastUpdate}}</td>
+		{{else}}
+		<tr><td><a href="/metric/{{urlquery $h.Name}}/{{urlquery $m.Name}}">{{$m.Name}}</a></td><td>{{$m.LastUpdate}}</td></tr>
+	{{end}}{{end}}{{end}}
+	</table>
+{{else}}
+	<p>No results found.</p>
+{{end}}
+	<p>&nbsp;</p>
+</section>

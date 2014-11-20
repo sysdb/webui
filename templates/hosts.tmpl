@@ -1,0 +1,14 @@
+<section>
+	<h1>Hosts</h1>
+{{if len .}}
+	<table class="results">
+		<tr><th>Host</th><th>Last update</th></tr>
+	{{range .}}
+		<tr><td><a href="/host/{{urlquery .Name}}">{{.Name}}</a></td><td>{{.LastUpdate}}</td></tr>
+	{{end}}
+	</table>
+{{else}}
+	<p>No results found.</p>
+{{end}}
+	<p>&nbsp;</p>
+</section>

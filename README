@@ -1,0 +1,99 @@
+                        Web User-Interface for SysDB
+                       ==============================
+
+  The SysDB web user-interface provides a graphical client application for
+  browsing and querying the system database.
+
+What is SysDB?
+--------------
+
+  “System DataBase” (SysDB) is a multi-backend system management and inventory
+  collection service. It stores system and inventory information about
+  hardware and software systems. This information is (continuously) collected
+  from various configurable backends (inventory services, monitoring services,
+  etc.) and stored in a graph-like hierarchy of generic objects. The store may
+  be queried through a generic interface independent of the active backends.
+  Object names are canonicalized before they are added to the store to ensure
+  a consistent view of your infrastructure.
+
+  The central object type is a host, which generally represents a physical or
+  virtual machine or any other type of physical resource. Hosts, in turn, may
+  reference a list of services which represent any kind of logical resource
+  like a software system. Both, hosts and services, may reference a list of
+  attributes which represent further information about the respective host or
+  service object. For example, attributes may specify static information like
+  a host's architecture or the software version. A host may also reference a
+  list of metrics which are references to performance data stored about the
+  host. SysDB supports querying the respective time-series from a backend's
+  data store.
+
+  SysDB is free and open source software, licensed under the 2-clause BSD
+  license. See COPYING for details.
+
+  <https://sysdb.io/>
+
+Install the web-interface
+-------------------------
+
+  The SysDB webui is written in Go. It can be installed along with all of its
+  dependencies as easy as running the following command:
+
+    go get github.com/sysdb/webui/...
+
+  This will download and install the packages and all of their dependencies
+  into GOPATH. See ‘go help get’ for more details.
+
+Running the web-interface
+-------------------------
+
+  The SysDB webui is a standalone web application. It can run all on its own
+  but it can also be put behind a reverse proxy (e.g. using Apache or nginx).
+  It is composed of a dynamic application and a set of static files (images
+  and style-sheets) which are shipped along with the source distribution. You
+  can start the application using the following command, using the --address
+  option to point it at a running SysDB daemon:
+
+    ./webui \
+        --address=/var/run/sysdbd.sock \
+        --listen=:8080 \
+        --static-path=$GOPATH/src/github.com/sysdb/webui/static \
+        --template-path=$GOPATH/src/github.com/sysdb/webui/templates
+
+  You can then access the interface by pointing your browser at
+  http://localhost:8080
+
+Packages
+--------
+
+  While the webui is a standalone application, most of its functionality is
+  implemented in a reusable library allowing to integrate it into other
+  software written in Go.
+
+  * github.com/sysdb/webui/server: The core of the SysDB web server.
+
+  It makes use of the following packages:
+
+  * github.com/sysdb/go/client (and related packages): A SysDB client
+    implementation.
+
+Documentation
+-------------
+
+  The documentation for all Go packages is included with the source code in a
+  way compatible with the godoc tool. As such, it can be viewed and browsed
+  online at <https://godoc.org/github.com/sysdb/webui>.
+
+Getting Help
+------------
+
+  Various channels for asynchronous and real-time communication with
+  developers and users are available. See <https://sysdb.io/contact/> for
+  details about the mailing list, IRC channel, and social media.
+
+Author
+------
+
+  Sebastian “tokkee” Harl <sh@tokkee.org>
+
+  Want to contribute? Check out the website <https://sysdb.io> for details.
+

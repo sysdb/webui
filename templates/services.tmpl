@@ -1,0 +1,18 @@
+<section>
+	<h1>Services</h1>
+{{if len .}}
+	<table class="results">
+		<tr><th>Host</th><th>Service</th><th>Last update</th></tr>
+	{{range $h := .}}
+		{{range $i, $s := $h.Services}}
+		{{if not $i}}
+		<tr><td rowspan="{{len $h.Services}}"><a href="/host/{{urlquery $h.Name}}">{{$h.Name}}</a></td><td><a href="/service/{{urlquery $h.Name}}/{{urlquery $s.Name}}">{{$s.Name}}</a></td><td>{{$s.LastUpdate}}</td>
+		{{else}}
+		<tr><td><a href="/service/{{urlquery $h.Name}}/{{urlquery $s.Name}}">{{$s.Name}}</a></td><td>{{$s.LastUpdate}}</td></tr>
+	{{end}}{{end}}{{end}}
+	</table>
+{{else}}
+	<p>No results found.</p>
+{{end}}
+	<p>&nbsp;</p>
+</section>

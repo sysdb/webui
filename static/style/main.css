@@ -1,0 +1,160 @@
+body {
+	font-family: sans-serif;
+	background-color: #f0f0f0;
+	margin: 0px;
+	padding: 0px;
+}
+
+a, a:link, a:active, a:visited, a:hover, a:focus, a:active {
+	text-decoration: none;
+	background-color: transparent;
+}
+
+iframe {
+	border: none;
+	overflow: hidden;
+}
+
+img {
+	border: none;
+}
+
+header {
+	padding: 0px;
+	margin: 0px;
+	width: 100%;
+}
+
+div.topmenu {
+	background-color: #000;
+	color: #fff;
+	font-size: small;
+	height: 1em;
+	vertical-align: middle;
+	text-align: right;
+	margin: 0px;
+	padding: .7em 3em;
+}
+
+div.topmenu a, div.topmenu a:link, div.topmenu a:active, div.topmenu a:visited {
+	background-color: transparent;
+	color: #fff;
+	padding: 2px;
+}
+
+div.topmenu a:hover, div.topmenu a:focus, div.topmenu a:active {
+	background-color: #454545;
+	color: #fff;
+	padding: 2px;
+}
+
+div.searchbar {
+	background-color: #1e466d;
+	font-size: small;
+	color: #fff;
+	margin: 0px;
+	padding: 0px;
+	border-bottom: 1px solid #000;
+}
+
+div.logo {
+	padding: 5px 0px 5px 25px;
+	margin-top: -2.4em;
+	vertical-align: middle;
+	display: inline-block;
+	float: left;
+}
+
+div.searchbox {
+	margin-left: 152px;
+	padding: 0px 5px;
+	overflow: hidden;
+}
+
+div.searchbox input[type=text] {
+	width: 440px;
+	height: 25px;
+	border: 0px;
+	margin: 10px 0px;
+	padding: 0px 3px;
+}
+
+div.searchbox button {
+	background-color: #000;
+	color: #fff;
+	border: 0px;
+	width: 50px;
+	height: 25px;
+	margin: 0px;
+	padding: 0px;
+}
+
+div.main {
+	margin: 0px;
+	padding: 0px;
+	width: 100%;
+	overflow: hidden;
+}
+
+div.content {
+	margin-left: 152px;
+	padding: 10px 10px 0px 0px;
+	overflow: hidden;
+}
+
+div.content section {
+	background-color: #fff;
+	margin: 10px 0px;
+	border: 1px solid #000;
+	-moz-border-radius: 5px;
+	-webkit-border-radius: 5px;
+	border-radius: 5px;
+	padding: 1em;
+}
+
+div.content section.error {
+	border: 1px solid #f00;
+}
+
+aside {
+	width: 142px;
+	float: left;
+	padding: 0px;
+	margin: 0x;
+}
+
+nav {
+	line-height: 1.5em;
+	padding: 25px 10px;
+}
+
+nav a, nav a:link, nav a:active, nav a:visited {
+	color: #000;
+	background-color: #cdcdcd;
+	padding: 3px;
+	margin: 5px 0px;
+	display: block;
+}
+
+nav a:hover, nav a:focus, nav a:active {
+	color: #000;
+	background-color: #ababab;
+	padding: 3px;
+	margin: 5px 0px;
+	display: block;
+}
+
+section h1 {
+	margin-top: 0px;
+	border-bottom: 1px solid #000;
+}
+
+table.results {
+	border-collapse: collapse;
+}
+
+table.results th, table.results td {
+	border: 1px solid #1e466d;
+	padding: 3px;
+	vertical-align: top;
+}

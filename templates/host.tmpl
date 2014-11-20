@@ -1,0 +1,33 @@
+<section>
+	<h1>Host {{.Name}}</h1>
+	<table class="results">
+		<tr><td><b>Last update</b></td><td>{{.LastUpdate}}</td></tr>
+		<tr><td><b>Update interval</b></td><td>{{.UpdateInterval}}</td></tr>
+		<tr><td><b>Backends</b></td><td>{{.Backends}}</td></tr>
+{{if len .Attributes}}
+		<tr><th colspan="2">Attributes</th></tr>
+	{{range .Attributes}}
+		<tr><td>{{.Name}}</td><td>{{.Value}}</td></tr>
+	{{end}}
+{{else}}
+		<tr><th colspan="2">No attributes</th></tr>
+{{end}}
+{{if len .Services}}
+		<tr><th colspan="2">Services</th></tr>
+	{{range .Services}}
+		<tr><td colspan="2"><a href="/service/{{urlquery $.Name}}/{{urlquery .Name}}">{{.Name}}</a></td></tr>
+	{{end}}
+{{else}}
+		<tr><th colspan="2">No services</th></tr>
+{{end}}
+{{if len .Metrics}}
+		<tr><th colspan="2">Metrics</th></tr>
+	{{range .Metrics}}
+		<tr><td colspan="2"><a href="/metric/{{urlquery $.Name}}/{{urlquery .Name}}">{{.Name}}</a></td></tr>
+	{{end}}
+{{else}}
+		<tr><th colspan="2">No Metrics</th></tr>
+{{end}}
+	</table>
+	<p>&nbsp;</p>
+</section>
