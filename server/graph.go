@@ -70,6 +70,7 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 		return
 	}
 	p.Add(plotter.NewGrid())
+	p.X.Tick.Marker = dateTicks
 
 	var i int
 	for name, data := range ts.Data {
@@ -100,6 +101,20 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.WriteHeader(http.StatusOK)
 	io.Copy(w, &buf)
+}
+
+func dateTicks(min, max float64) []plot.Tick {
+	// TODO: this is surely not the best we can do
+	// but it'll distribute ticks evenly.
+	ticks := plot.DefaultTicks(min, max)
+	for i, t := range ticks {
+		if t.Label == "" {
+			// Skip minor ticks.
+			continue
+		}
+		ticks[i].Label = time.Unix(0, int64(t.Value)).Format(time.RFC822)
+	}
+	return ticks
 }
 
 // vim: set tw=78 sw=4 sw=4 noexpandtab :
