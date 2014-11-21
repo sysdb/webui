@@ -8,7 +8,7 @@
 {{if len $s.Attributes}}
 		<tr><th colspan="2">Attributes</th></tr>
 	{{range $s.Attributes}}
-		<tr><td>{{.Name}}</td><td>{{.Value}}</td></tr>
+		<tr><td>{{.Name}}</td><td class="value">{{.Value}}</td></tr>
 	{{end}}
 {{else}}
 		<tr><th colspan="2">No attributes</th></tr>

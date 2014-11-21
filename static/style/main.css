@@ -156,5 +156,12 @@ table.results {
 table.results th, table.results td {
 	border: 1px solid #1e466d;
 	padding: 3px;
+	text-align: left;
 	vertical-align: top;
+	word-wrap: break-word;
+	white-space: normal;
+}
+
+table.results td.value {
+	word-break: break-all;
 }
