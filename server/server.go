@@ -61,12 +61,15 @@ type Config struct {
 type Server struct {
 	conns chan *client.Conn
 
+	// Request multiplexer
+	mux map[string]handler
+
 	// Templates:
 	main    *template.Template
 	results map[string]*template.Template
 
-	// Static content:
-	static http.Handler
+	// Base directory of static files.
+	basedir string
 }
 
 // New constructs a new SysDB web server using the specified configuration.
@@ -97,7 +100,11 @@ func New(cfg Config) (*Server, error) {
 		}
 	}
 
-	s.static = http.FileServer(http.Dir(cfg.StaticPath))
+	s.basedir = cfg.StaticPath
+	s.mux = map[string]handler{
+		"images": s.static,
+		"style":  s.static,
+	}
 	return s, nil
 }
 
@@ -112,7 +119,10 @@ type request struct {
 	args []string
 }
 
-var handlers = map[string]func(request, *Server) (template.HTML, error){
+type handler func(http.ResponseWriter, request)
+
+// Content generators for HTML pages.
+var content = map[string]func(request, *Server) (template.HTML, error){
 	"": index,
 
 	// Queries
@@ -134,11 +144,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	fields := strings.Split(path, "/")
 
-	if fields[0] == "style" || fields[0] == "images" {
-		s.static.ServeHTTP(w, r)
-		return
-	}
-
 	req := request{
 		r:   r,
 		cmd: fields[0],
@@ -153,7 +158,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	f, ok := handlers[req.cmd]
+	if h := s.mux[fields[0]]; h != nil {
+		h(w, req)
+		return
+	}
+
+	f, ok := content[req.cmd]
 	if !ok {
 		s.notfound(w, r)
 		return
@@ -184,6 +194,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	io.Copy(w, &buf)
+}
+
+// static serves static content.
+func (s *Server) static(w http.ResponseWriter, req request) {
+	http.ServeFile(w, req.r, filepath.Clean(filepath.Join(s.basedir, req.r.URL.Path)))
 }
 
 // Content handlers.
