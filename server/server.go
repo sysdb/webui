@@ -104,6 +104,7 @@ func New(cfg Config) (*Server, error) {
 	s.mux = map[string]handler{
 		"images": s.static,
 		"style":  s.static,
+		"graph":  s.graph,
 	}
 	return s, nil
 }
@@ -317,6 +318,10 @@ func (s *Server) query(cmd string) (interface{}, error) {
 			var host sysdb.Host
 			err = proto.Unmarshal(m, &host)
 			res = host
+		case proto.Timeseries:
+			var ts sysdb.Timeseries
+			err = proto.Unmarshal(m, &ts)
+			res = ts
 		default:
 			return nil, fmt.Errorf("Unsupported data type %d", t)
 		}
