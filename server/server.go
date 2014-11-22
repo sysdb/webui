@@ -32,15 +32,12 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
 
 	"github.com/sysdb/go/client"
-	"github.com/sysdb/go/proto"
-	"github.com/sysdb/go/sysdb"
 )
 
 // A Config specifies configuration values for a SysDB web server.
@@ -212,69 +209,8 @@ func (s *Server) static(w http.ResponseWriter, req request) {
 	http.ServeFile(w, req.r, filepath.Clean(filepath.Join(s.basedir, req.r.URL.Path)))
 }
 
-// Content handlers.
-
 func index(_ request, s *Server) (*page, error) {
 	return &page{Content: "<section><h1>Welcome to the System Database.</h1></section>"}, nil
-}
-
-func listAll(req request, s *Server) (*page, error) {
-	if len(req.args) != 0 {
-		return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
-	}
-
-	res, err := s.query(fmt.Sprintf("LIST %s", req.cmd))
-	if err != nil {
-		return nil, err
-	}
-	// the template *must* exist
-	return tmpl(s.results[req.cmd], res)
-}
-
-func lookup(req request, s *Server) (*page, error) {
-	if req.r.Method != "POST" {
-		return nil, errors.New("Method not allowed")
-	}
-	q := proto.EscapeString(req.r.FormValue("query"))
-	if q == "''" {
-		return nil, errors.New("Empty query")
-	}
-
-	res, err := s.query(fmt.Sprintf("LOOKUP hosts MATCHING name =~ %s", q))
-	if err != nil {
-		return nil, err
-	}
-	return tmpl(s.results["hosts"], res)
-}
-
-func fetch(req request, s *Server) (*page, error) {
-	if len(req.args) == 0 {
-		return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
-	}
-
-	var q string
-	switch req.cmd {
-	case "host":
-		if len(req.args) != 1 {
-			return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
-		}
-		q = fmt.Sprintf("FETCH host %s", proto.EscapeString(req.args[0]))
-	case "service", "metric":
-		if len(req.args) != 2 {
-			return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
-		}
-		host := proto.EscapeString(req.args[0])
-		name := proto.EscapeString(req.args[1])
-		q = fmt.Sprintf("FETCH %s %s.%s", req.cmd, host, name)
-	default:
-		panic("Unknown request: fetch(" + req.cmd + ")")
-	}
-
-	res, err := s.query(q)
-	if err != nil {
-		return nil, err
-	}
-	return tmpl(s.results[req.cmd], res)
 }
 
 func tmpl(t *template.Template, data interface{}) (*page, error) {
@@ -287,59 +223,6 @@ func tmpl(t *template.Template, data interface{}) (*page, error) {
 
 func html(s string) template.HTML {
 	return template.HTML(template.HTMLEscapeString(s))
-}
-
-func (s *Server) query(cmd string) (interface{}, error) {
-	c := <-s.conns
-	defer func() { s.conns <- c }()
-
-	m := &proto.Message{
-		Type: proto.ConnectionQuery,
-		Raw:  []byte(cmd),
-	}
-	if err := c.Send(m); err != nil {
-		return nil, fmt.Errorf("Query %q: %v", cmd, err)
-	}
-
-	for {
-		m, err := c.Receive()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to receive server response: %v", err)
-		}
-		if m.Type == proto.ConnectionLog {
-			log.Println(string(m.Raw[4:]))
-			continue
-		} else if m.Type == proto.ConnectionError {
-			return nil, errors.New(string(m.Raw))
-		}
-
-		t, err := m.DataType()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to unmarshal response: %v", err)
-		}
-
-		var res interface{}
-		switch t {
-		case proto.HostList:
-			var hosts []sysdb.Host
-			err = proto.Unmarshal(m, &hosts)
-			res = hosts
-		case proto.Host:
-			var host sysdb.Host
-			err = proto.Unmarshal(m, &host)
-			res = host
-		case proto.Timeseries:
-			var ts sysdb.Timeseries
-			err = proto.Unmarshal(m, &ts)
-			res = ts
-		default:
-			return nil, fmt.Errorf("Unsupported data type %d", t)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("Failed to unmarshal response: %v", err)
-		}
-		return res, nil
-	}
 }
 
 // vim: set tw=78 sw=4 sw=4 noexpandtab :
