@@ -33,7 +33,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"code.google.com/p/plotinum/plot"
@@ -46,12 +45,12 @@ import (
 )
 
 func (s *Server) graph(w http.ResponseWriter, req request) {
-	if len(req.args) < 2 {
+	if len(req.args) != 2 {
 		s.internal(w, fmt.Errorf("Missing host/metric information"))
 	}
 
 	host := proto.EscapeString(req.args[0])
-	metric := proto.EscapeString(strings.Join(req.args[1:], "/"))
+	metric := proto.EscapeString(req.args[1])
 	res, err := s.query(fmt.Sprintf("TIMESERIES %s.%s", host, metric))
 	if err != nil {
 		s.internal(w, fmt.Errorf("Failed to retrieve graph data: %v", err))

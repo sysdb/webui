@@ -34,6 +34,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -145,11 +146,19 @@ var content = map[string]func(request, *Server) (*page, error){
 // ServeHTTP implements the http.Handler interface and serves
 // the SysDB user interface.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
+	path := r.RequestURI
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
 	}
-	fields := strings.Split(path, "/")
+	var fields []string
+	for _, f := range strings.Split(path, "/") {
+		f, err := url.QueryUnescape(f)
+		if err != nil {
+			s.err(w, http.StatusBadRequest, fmt.Errorf("Error: %v", err))
+			return
+		}
+		fields = append(fields, f)
+	}
 
 	req := request{
 		r:   r,
@@ -251,11 +260,11 @@ func fetch(req request, s *Server) (*page, error) {
 		}
 		q = fmt.Sprintf("FETCH host %s", proto.EscapeString(req.args[0]))
 	case "service", "metric":
-		if len(req.args) < 2 {
+		if len(req.args) != 2 {
 			return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
 		}
 		host := proto.EscapeString(req.args[0])
-		name := proto.EscapeString(strings.Join(req.args[1:], "/"))
+		name := proto.EscapeString(req.args[1])
 		q = fmt.Sprintf("FETCH %s %s.%s", req.cmd, host, name)
 	default:
 		panic("Unknown request: fetch(" + req.cmd + ")")
