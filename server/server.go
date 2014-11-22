@@ -122,8 +122,14 @@ type request struct {
 
 type handler func(http.ResponseWriter, request)
 
+type page struct {
+	Title   string
+	Query   string
+	Content template.HTML
+}
+
 // Content generators for HTML pages.
-var content = map[string]func(request, *Server) (template.HTML, error){
+var content = map[string]func(request, *Server) (*page, error){
 	"": index,
 
 	// Queries
@@ -170,24 +176,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.ParseForm()
-	content, err := f(req, s)
+	page, err := f(req, s)
 	if err != nil {
 		s.err(w, http.StatusBadRequest, fmt.Errorf("Error: %v", err))
 		return
 	}
 
-	page := struct {
-		Title   string
-		Query   string
-		Content template.HTML
-	}{
-		Title:   "SysDB - The System Database",
-		Query:   r.FormValue("query"),
-		Content: content,
+	page.Query = r.FormValue("query")
+	if page.Title == "" {
+		page.Title = "SysDB - The System Database"
 	}
 
 	var buf bytes.Buffer
-	err = s.main.Execute(&buf, &page)
+	err = s.main.Execute(&buf, page)
 	if err != nil {
 		s.internal(w, err)
 		return
@@ -204,54 +205,54 @@ func (s *Server) static(w http.ResponseWriter, req request) {
 
 // Content handlers.
 
-func index(_ request, s *Server) (template.HTML, error) {
-	return "<section><h1>Welcome to the System Database.</h1></section>", nil
+func index(_ request, s *Server) (*page, error) {
+	return &page{Content: "<section><h1>Welcome to the System Database.</h1></section>"}, nil
 }
 
-func listAll(req request, s *Server) (template.HTML, error) {
+func listAll(req request, s *Server) (*page, error) {
 	if len(req.args) != 0 {
-		return "", fmt.Errorf("%s not found", strings.Title(req.cmd))
+		return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
 	}
 
 	res, err := s.query(fmt.Sprintf("LIST %s", req.cmd))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	// the template *must* exist
 	return tmpl(s.results[req.cmd], res)
 }
 
-func lookup(req request, s *Server) (template.HTML, error) {
+func lookup(req request, s *Server) (*page, error) {
 	if req.r.Method != "POST" {
-		return "", errors.New("Method not allowed")
+		return nil, errors.New("Method not allowed")
 	}
 	q := proto.EscapeString(req.r.FormValue("query"))
 	if q == "''" {
-		return "", errors.New("Empty query")
+		return nil, errors.New("Empty query")
 	}
 
 	res, err := s.query(fmt.Sprintf("LOOKUP hosts MATCHING name =~ %s", q))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	return tmpl(s.results["hosts"], res)
 }
 
-func fetch(req request, s *Server) (template.HTML, error) {
+func fetch(req request, s *Server) (*page, error) {
 	if len(req.args) == 0 {
-		return "", fmt.Errorf("%s not found", strings.Title(req.cmd))
+		return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
 	}
 
 	var q string
 	switch req.cmd {
 	case "host":
 		if len(req.args) != 1 {
-			return "", fmt.Errorf("%s not found", strings.Title(req.cmd))
+			return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
 		}
 		q = fmt.Sprintf("FETCH host %s", proto.EscapeString(req.args[0]))
 	case "service", "metric":
 		if len(req.args) < 2 {
-			return "", fmt.Errorf("%s not found", strings.Title(req.cmd))
+			return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
 		}
 		host := proto.EscapeString(req.args[0])
 		name := proto.EscapeString(strings.Join(req.args[1:], "/"))
@@ -262,17 +263,17 @@ func fetch(req request, s *Server) (template.HTML, error) {
 
 	res, err := s.query(q)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	return tmpl(s.results[req.cmd], res)
 }
 
-func tmpl(t *template.Template, data interface{}) (template.HTML, error) {
+func tmpl(t *template.Template, data interface{}) (*page, error) {
 	var buf bytes.Buffer
 	if err := t.Execute(&buf, data); err != nil {
-		return "", fmt.Errorf("Template error: %v", err)
+		return nil, fmt.Errorf("Template error: %v", err)
 	}
-	return template.HTML(buf.String()), nil
+	return &page{Content: template.HTML(buf.String())}, nil
 }
 
 func html(s string) template.HTML {
