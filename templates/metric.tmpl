@@ -1,6 +1,8 @@
 <section>{{$m := index .Metrics 0}}
 	<h1>Metric {{$.Name}} &mdash; {{$m.Name}}</h1>
+{{if $m.Timeseries}}
 	<img src="/graph/{{urlquery $.Name}}/{{urlquery $m.Name}}" border="0" />
+{{end}}
 	<table class="results">
 		<tr><td><b>Host</b></td><td><a href="/host/{{urlquery $.Name}}">{{$.Name}}</a></td></tr>
 		<tr><td><b>Last update</b></td><td>{{$m.LastUpdate}}</td></tr>
