@@ -151,7 +151,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for _, f := range strings.Split(path, "/") {
 		f, err := url.QueryUnescape(f)
 		if err != nil {
-			s.err(w, http.StatusBadRequest, fmt.Errorf("Error: %v", err))
+			s.badrequest(w, fmt.Errorf("Error: %v", err))
 			return
 		}
 		fields = append(fields, f)
@@ -184,7 +184,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	page, err := f(req, s)
 	if err != nil {
-		s.err(w, http.StatusBadRequest, fmt.Errorf("Error: %v", err))
+		s.badrequest(w, fmt.Errorf("Error: %v", err))
 		return
 	}
 

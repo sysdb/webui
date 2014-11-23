@@ -46,7 +46,7 @@ import (
 
 func (s *Server) graph(w http.ResponseWriter, req request) {
 	if len(req.args) != 2 {
-		s.internal(w, fmt.Errorf("Missing host/metric information"))
+		s.badrequest(w, fmt.Errorf("Missing host/metric information"))
 	}
 
 	host := proto.EscapeString(req.args[0])

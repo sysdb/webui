@@ -40,6 +40,10 @@ func (s *Server) notfound(w http.ResponseWriter, r *http.Request) {
 	s.err(w, http.StatusNotFound, fmt.Errorf("%s not found", r.RequestURI))
 }
 
+func (s *Server) badrequest(w http.ResponseWriter, err error) {
+	s.err(w, http.StatusBadRequest, err)
+}
+
 func (s *Server) internal(w http.ResponseWriter, err error) {
 	s.err(w, http.StatusInternalServerError, err)
 }
