@@ -40,18 +40,38 @@ import (
 	"code.google.com/p/plotinum/plotutil"
 	"code.google.com/p/plotinum/vg"
 	"code.google.com/p/plotinum/vg/vgsvg"
-	"github.com/sysdb/go/proto"
 	"github.com/sysdb/go/sysdb"
 )
 
+var timeLayout = "20060102150405"
+
 func (s *Server) graph(w http.ResponseWriter, req request) {
-	if len(req.args) != 2 {
+	if len(req.args) < 2 || 4 < len(req.args) {
 		s.badrequest(w, fmt.Errorf("Missing host/metric information"))
+		return
 	}
 
-	host := proto.EscapeString(req.args[0])
-	metric := proto.EscapeString(req.args[1])
-	res, err := s.query(fmt.Sprintf("TIMESERIES %s.%s", host, metric))
+	end := time.Now()
+	start := end.Add(-24 * time.Hour)
+	var err error
+	if len(req.args) > 2 {
+		if start, err = time.Parse(timeLayout, req.args[2]); err != nil {
+			s.badrequest(w, fmt.Errorf("Invalid start time: %v", err))
+			return
+		}
+	}
+	if len(req.args) > 3 {
+		if end, err = time.Parse(timeLayout, req.args[3]); err != nil {
+			s.badrequest(w, fmt.Errorf("Invalid start time: %v", err))
+			return
+		}
+	}
+	if start.Equal(end) || start.After(end) {
+		s.badrequest(w, fmt.Errorf("START(%v) is greater than or equal to END(%v)", start, end))
+		return
+	}
+
+	res, err := s.query("TIMESERIES %s.%s START %s END %s", req.args[0], req.args[1], start, end)
 	if err != nil {
 		s.internal(w, fmt.Errorf("Failed to retrieve graph data: %v", err))
 		return

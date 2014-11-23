@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/sysdb/go/proto"
 	"github.com/sysdb/go/sysdb"
@@ -105,6 +106,8 @@ func (s *Server) query(cmd string, args ...interface{}) (interface{}, error) {
 			// Nothing to do.
 		case string:
 			args[i] = proto.EscapeString(v)
+		case time.Time:
+			args[i] = v.Format("2006-01-02 15:04:05")
 		default:
 			panic(fmt.Sprintf("query: invalid type %T", arg))
 		}
