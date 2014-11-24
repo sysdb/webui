@@ -85,6 +85,9 @@ func fetch(req request, s *Server) (*page, error) {
 			return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
 		}
 		res, err = s.query("FETCH %s %s.%s", identifier(req.cmd), req.args[0], req.args[1])
+		if req.cmd == "metric" {
+			return metric(req, res, s)
+		}
 	default:
 		panic("Unknown request: fetch(" + req.cmd + ")")
 	}
@@ -92,6 +95,42 @@ func fetch(req request, s *Server) (*page, error) {
 		return nil, err
 	}
 	return tmpl(s.results[req.cmd], res)
+}
+
+var datetime = "2006-01-02 15:04:05"
+
+func metric(req request, res interface{}, s *Server) (*page, error) {
+	start := time.Now().Add(-24 * time.Hour)
+	end := time.Now()
+	if req.r.Method == "POST" {
+		var err error
+		// Parse the values first to verify their format.
+		if s := req.r.FormValue("start_date"); s != "" {
+			if start, err = time.Parse(datetime, s); err != nil {
+				return nil, fmt.Errorf("Invalid start time %q", s)
+			}
+		}
+		if e := req.r.FormValue("end_date"); e != "" {
+			if end, err = time.Parse(datetime, e); err != nil {
+				return nil, fmt.Errorf("Invalid end time %q", e)
+			}
+		}
+	}
+
+	p := struct {
+		StartTime string
+		EndTime   string
+		URLStart  string
+		URLEnd    string
+		Data      interface{}
+	}{
+		start.Format(datetime),
+		end.Format(datetime),
+		start.Format(urldate),
+		end.Format(urldate),
+		res,
+	}
+	return tmpl(s.results["metric"], &p)
 }
 
 type identifier string
@@ -107,7 +146,7 @@ func (s *Server) query(cmd string, args ...interface{}) (interface{}, error) {
 		case string:
 			args[i] = proto.EscapeString(v)
 		case time.Time:
-			args[i] = v.Format("2006-01-02 15:04:05")
+			args[i] = v.Format(datetime)
 		default:
 			panic(fmt.Sprintf("query: invalid type %T", arg))
 		}

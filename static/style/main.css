@@ -165,3 +165,18 @@ table.results th, table.results td {
 table.results td.value {
 	word-break: break-all;
 }
+
+input[type=text].datetime {
+	width: 12em;
+	height: 25px;
+	border: 1px solid #000;
+	padding: 0px 3px;
+}
+
+button {
+	background-color: #000;
+	color: #fff;
+	border: 1px solid #000;
+	height: 25px;
+	padding: 0px;
+}

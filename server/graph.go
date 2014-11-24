@@ -43,7 +43,7 @@ import (
 	"github.com/sysdb/go/sysdb"
 )
 
-var timeLayout = "20060102150405"
+var urldate = "20060102150405"
 
 func (s *Server) graph(w http.ResponseWriter, req request) {
 	if len(req.args) < 2 || 4 < len(req.args) {
@@ -55,13 +55,13 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 	start := end.Add(-24 * time.Hour)
 	var err error
 	if len(req.args) > 2 {
-		if start, err = time.Parse(timeLayout, req.args[2]); err != nil {
+		if start, err = time.Parse(urldate, req.args[2]); err != nil {
 			s.badrequest(w, fmt.Errorf("Invalid start time: %v", err))
 			return
 		}
 	}
 	if len(req.args) > 3 {
-		if end, err = time.Parse(timeLayout, req.args[3]); err != nil {
+		if end, err = time.Parse(urldate, req.args[3]); err != nil {
 			s.badrequest(w, fmt.Errorf("Invalid start time: %v", err))
 			return
 		}

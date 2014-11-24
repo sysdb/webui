@@ -1,10 +1,17 @@
-<section>{{$m := index .Metrics 0}}
-	<h1>Metric {{$.Name}} &mdash; {{$m.Name}}</h1>
+<section>{{$m := index .Data.Metrics 0}}
+	<h1>Metric {{.Data.Name}} &mdash; {{$m.Name}}</h1>
 {{if $m.Timeseries}}
-	<img src="/graph/{{urlquery $.Name}}/{{urlquery $m.Name}}" border="0" />
+	<form action="/metric/{{urlquery .Data.Name}}/{{urlquery $m.Name}}" method="POST">
+		<b>Time range:</b>
+		<input type="text" name="start_date" value="{{.StartTime}}" class="datetime">
+		&mdash;
+		<input type="text" name="end_date" value="{{.EndTime}}" class="datetime">
+		<button type="submit">Apply</button>
+	</form><br />
+	<img src="/graph/{{urlquery .Data.Name}}/{{urlquery $m.Name}}/{{.URLStart}}/{{.URLEnd}}" border="0" />
 {{end}}
 	<table class="results">
-		<tr><td><b>Host</b></td><td><a href="/host/{{urlquery $.Name}}">{{$.Name}}</a></td></tr>
+		<tr><td><b>Host</b></td><td><a href="/host/{{urlquery .Data.Name}}">{{.Data.Name}}</a></td></tr>
 		<tr><td><b>Last update</b></td><td>{{$m.LastUpdate}}</td></tr>
 		<tr><td><b>Update interval</b></td><td>{{$m.UpdateInterval}}</td></tr>
 		<tr><td><b>Backends</b></td><td>{{$m.Backends}}</td></tr>
