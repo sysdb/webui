@@ -33,6 +33,7 @@ import (
 	"log"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/sysdb/go/proto"
 	"github.com/sysdb/go/sysdb"
@@ -55,12 +56,29 @@ func lookup(req request, s *Server) (*page, error) {
 	if req.r.Method != "POST" {
 		return nil, errors.New("Method not allowed")
 	}
-	q := req.r.FormValue("query")
-	if q == "''" {
+	tokens, err := tokenize(req.r.PostForm.Get("query"))
+	if err != nil {
+		return nil, err
+	}
+	if len(tokens) == 0 {
 		return nil, errors.New("Empty query")
 	}
 
-	res, err := s.query("LOOKUP hosts MATCHING name =~ %s", q)
+	var args string
+	for i, tok := range tokens {
+		if i != 0 {
+			args += " AND"
+		}
+
+		if fields := strings.SplitN(tok, ":", 2); len(fields) == 2 {
+			args += fmt.Sprintf(" attribute[%s] = %s",
+				proto.EscapeString(fields[0]), proto.EscapeString(fields[1]))
+		} else {
+			args += fmt.Sprintf(" name =~ %s", proto.EscapeString(tok))
+		}
+	}
+
+	res, err := s.query("LOOKUP hosts MATCHING" + args)
 	if err != nil {
 		return nil, err
 	}
@@ -105,12 +123,12 @@ func metric(req request, res interface{}, s *Server) (*page, error) {
 	if req.r.Method == "POST" {
 		var err error
 		// Parse the values first to verify their format.
-		if s := req.r.FormValue("start_date"); s != "" {
+		if s := req.r.PostForm.Get("start_date"); s != "" {
 			if start, err = time.Parse(datetime, s); err != nil {
 				return nil, fmt.Errorf("Invalid start time %q", s)
 			}
 		}
-		if e := req.r.FormValue("end_date"); e != "" {
+		if e := req.r.PostForm.Get("end_date"); e != "" {
 			if end, err = time.Parse(datetime, e); err != nil {
 				return nil, fmt.Errorf("Invalid end time %q", e)
 			}
@@ -131,6 +149,103 @@ func metric(req request, res interface{}, s *Server) (*page, error) {
 		res,
 	}
 	return tmpl(s.results["metric"], &p)
+}
+
+// tokenize split the string s into its tokens where a token is either a quoted
+// string or surrounded by one or more consecutive whitespace characters.
+func tokenize(s string) ([]string, error) {
+	scan := scanner{}
+	tokens := []string{}
+	start := -1
+	for i, r := range s {
+		if !scan.inField(r) {
+			if start == -1 {
+				// Skip leading and consecutive whitespace.
+				continue
+			}
+			tok, err := unescape(s[start:i])
+			if err != nil {
+				return nil, err
+			}
+			tokens = append(tokens, tok)
+			start = -1
+		} else if start == -1 {
+			// Found a new field.
+			start = i
+		}
+	}
+	if start >= 0 {
+		// Last (or possibly only) field.
+		tok, err := unescape(s[start:])
+		if err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, tok)
+	}
+
+	if scan.inQuotes {
+		return nil, errors.New("quoted string not terminated")
+	}
+	if scan.escaped {
+		return nil, errors.New("illegal character escape at end of string")
+	}
+	return tokens, nil
+}
+
+func unescape(s string) (string, error) {
+	var unescaped []byte
+	var i, n int
+	for i = 0; i < len(s); i++ {
+		if s[i] != '\\' {
+			n++
+			continue
+		}
+
+		if i >= len(s) {
+			return "", errors.New("illegal character escape at end of string")
+		}
+		if s[i+1] != ' ' && s[i+1] != '"' && s[i+1] != '\\' {
+			// Allow simple escapes only for now.
+			return "", fmt.Errorf("illegal character escape \\%c", s[i+1])
+		}
+		if unescaped == nil {
+			unescaped = []byte(s)
+		}
+		copy(unescaped[n:], s[i+1:])
+	}
+
+	if unescaped != nil {
+		return string(unescaped[:n]), nil
+	}
+	return s, nil
+}
+
+type scanner struct {
+	inQuotes bool
+	escaped  bool
+}
+
+func (s *scanner) inField(r rune) bool {
+	if s.escaped {
+		s.escaped = false
+		return true
+	}
+	if r == '\\' {
+		s.escaped = true
+		return true
+	}
+	if s.inQuotes {
+		if r == '"' {
+			s.inQuotes = false
+			return false
+		}
+		return true
+	}
+	if r == '"' {
+		s.inQuotes = true
+		return false
+	}
+	return !unicode.IsSpace(r)
 }
 
 type identifier string
