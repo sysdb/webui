@@ -30,7 +30,6 @@ package server
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -51,11 +50,7 @@ func (s *Server) internal(w http.ResponseWriter, err error) {
 func (s *Server) err(w http.ResponseWriter, status int, err error) {
 	log.Printf("%s: %v", http.StatusText(status), err)
 
-	page := struct {
-		Title   string
-		Query   string
-		Content template.HTML
-	}{
+	page := page{
 		Title:   "SysDB - Error",
 		Content: "<section class=\"error\">" + html(err.Error()) + "</section>",
 	}
