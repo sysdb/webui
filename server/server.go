@@ -182,19 +182,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.ParseForm()
-	page, err := f(req, s)
+	p, err := f(req, s)
 	if err != nil {
-		s.badrequest(w, fmt.Errorf("Error: %v", err))
-		return
+		p = &page{
+			Content: "<section class=\"error\">" +
+				html(fmt.Sprintf("Error: %v", err)) +
+				"</section>",
+		}
 	}
 
-	page.Query = r.FormValue("query")
-	if page.Title == "" {
-		page.Title = "SysDB - The System Database"
+	p.Query = r.FormValue("query")
+	if p.Title == "" {
+		p.Title = "SysDB - The System Database"
 	}
 
 	var buf bytes.Buffer
-	err = s.main.Execute(&buf, page)
+	err = s.main.Execute(&buf, p)
 	if err != nil {
 		s.internal(w, err)
 		return
