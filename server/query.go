@@ -64,25 +64,33 @@ func lookup(req request, s *Server) (*page, error) {
 		return nil, errors.New("Empty query")
 	}
 
+	typ := "hosts"
 	var args string
 	for i, tok := range tokens {
-		if i != 0 {
+		if len(args) > 0 {
 			args += " AND"
 		}
 
 		if fields := strings.SplitN(tok, ":", 2); len(fields) == 2 {
-			args += fmt.Sprintf(" attribute[%s] = %s",
-				proto.EscapeString(fields[0]), proto.EscapeString(fields[1]))
+			if i == 0 && fields[1] == "" {
+				typ = fields[0]
+			} else {
+				args += fmt.Sprintf(" attribute[%s] = %s",
+					proto.EscapeString(fields[0]), proto.EscapeString(fields[1]))
+			}
 		} else {
 			args += fmt.Sprintf(" name =~ %s", proto.EscapeString(tok))
 		}
 	}
 
-	res, err := s.query("LOOKUP hosts MATCHING" + args)
+	res, err := s.query("LOOKUP %s MATCHING"+args, identifier(typ))
 	if err != nil {
 		return nil, err
 	}
-	return tmpl(s.results["hosts"], res)
+	if t, ok := s.results[typ]; ok {
+		return tmpl(t, res)
+	}
+	return nil, fmt.Errorf("Unsupported type %s", typ)
 }
 
 func fetch(req request, s *Server) (*page, error) {
