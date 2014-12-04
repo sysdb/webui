@@ -147,6 +147,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
 	}
+	if idx := strings.Index(path, "?"); idx != -1 {
+		path = path[:idx]
+	}
 	var fields []string
 	for _, f := range strings.Split(path, "/") {
 		f, err := url.QueryUnescape(f)
