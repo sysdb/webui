@@ -32,19 +32,32 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/user"
 
 	"github.com/sysdb/go/client"
 	"github.com/sysdb/webui/server"
 )
 
 var (
-	addr = flag.String("address", "/var/run/sysdbd.sock", "SysDB server address")
-	user = flag.String("user", "sysdb", "SysDB user name")
+	addr     = flag.String("address", "/var/run/sysdbd.sock", "SysDB server address")
+	username *string
 
 	listen = flag.String("listen", ":8080", "address to listen for incoming connections")
 	tmpl   = flag.String("template-path", "templates", "location of template files")
 	static = flag.String("static-path", "static", "location of static files")
 )
+
+func init() {
+	u, err := user.Current()
+	var def string
+	if err != nil {
+		log.Printf("WARNING: Unable to determine current user: %v", err)
+	} else {
+		def = u.Username
+	}
+
+	username = flag.String("user", def, "SysDB user name")
+}
 
 func main() {
 	flag.Parse()
@@ -52,7 +65,7 @@ func main() {
 	log.Printf("Connecting to SysDB at %s.", *addr)
 	var conns []*client.Conn
 	for i := 0; i < 10; i++ {
-		conn, err := client.Connect(*addr, *user)
+		conn, err := client.Connect(*addr, *username)
 		if err != nil {
 			fatalf("Failed to connect to SysDB at %q: %v", *addr, err)
 		}
