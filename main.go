@@ -71,6 +71,11 @@ func main() {
 		}
 		conns = append(conns, conn)
 	}
+	major, minor, patch, extra, err := conns[0].ServerVersion()
+	if err != nil {
+		fatalf("Failed to query server version: %v", err)
+	}
+	log.Printf("Connected to SysDB %d.%d.%d%s.", major, minor, patch, extra)
 
 	srv, err := server.New(server.Config{
 		Conns:        conns,
