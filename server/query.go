@@ -111,7 +111,7 @@ func fetch(req request, s *Server) (*page, error) {
 			return nil, fmt.Errorf("%s not found", strings.Title(req.cmd))
 		}
 		res, err = s.query("FETCH %s %s.%s", identifier(req.cmd), req.args[0], req.args[1])
-		if req.cmd == "metric" {
+		if err == nil && req.cmd == "metric" {
 			return metric(req, res, s)
 		}
 	default:

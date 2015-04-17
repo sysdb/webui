@@ -216,7 +216,19 @@ func (s *Server) static(w http.ResponseWriter, req request) {
 }
 
 func index(_ request, s *Server) (*page, error) {
-	return &page{Content: "<section><h1>Welcome to the System Database.</h1></section>"}, nil
+	c := <-s.conns
+	defer func() { s.conns <- c }()
+
+	major, minor, patch, extra, err := c.ServerVersion()
+	if err != nil {
+		return nil, err
+	}
+
+	content := fmt.Sprintf("<section>"+
+		"<h1>Welcome to the System Database.</h1>"+
+		"<p>Connected to SysDB %d.%d.%d%s</p>"+
+		"</section>", major, minor, patch, html(extra))
+	return &page{Content: template.HTML(content)}, nil
 }
 
 func tmpl(t *template.Template, data interface{}) (*page, error) {
