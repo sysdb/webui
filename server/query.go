@@ -72,8 +72,19 @@ func lookup(req request, s *Server) (*page, error) {
 		}
 
 		if fields := strings.SplitN(tok, ":", 2); len(fields) == 2 {
+			// Query: [<type>:] [<sibling-type>.]<attribute>:<value> ...
 			if i == 0 && fields[1] == "" {
 				typ = fields[0]
+			} else if elems := strings.Split(fields[0], "."); len(elems) > 1 {
+				objs := elems[:len(elems)-1]
+				for _, o := range objs {
+					if o != "host" && o != "service" && o != "metric" {
+						return nil, fmt.Errorf("Invalid object type %q", o)
+					}
+				}
+				args += fmt.Sprintf(" %s.attribute[%s] = %s",
+					strings.Join(objs, "."), proto.EscapeString(elems[len(elems)-1]),
+					proto.EscapeString(fields[1]))
 			} else {
 				args += fmt.Sprintf(" attribute[%s] = %s",
 					proto.EscapeString(fields[0]), proto.EscapeString(fields[1]))
