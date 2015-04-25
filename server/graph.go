@@ -35,11 +35,10 @@ import (
 	"net/http"
 	"time"
 
-	"code.google.com/p/plotinum/plot"
-	"code.google.com/p/plotinum/plotter"
-	"code.google.com/p/plotinum/plotutil"
-	"code.google.com/p/plotinum/vg"
-	"code.google.com/p/plotinum/vg/vgsvg"
+	"github.com/gonum/plot"
+	"github.com/gonum/plot/plotter"
+	"github.com/gonum/plot/plotutil"
+	"github.com/gonum/plot/vg"
 	"github.com/sysdb/go/sysdb"
 )
 
@@ -89,7 +88,7 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 		return
 	}
 	p.Add(plotter.NewGrid())
-	p.X.Tick.Marker = dateTicks
+	p.X.Tick.Marker = dateTicks{}
 
 	var i int
 	for name, data := range ts.Data {
@@ -109,11 +108,14 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 		i++
 	}
 
-	c := vgsvg.New(vg.Length(500), vg.Length(200))
-	p.Draw(plot.MakeDrawArea(c))
+	pw, err := p.WriterTo(vg.Length(500), vg.Length(200), "svg")
+	if err != nil {
+		s.internal(w, fmt.Errorf("Failed to write plot: %v", err))
+		return
+	}
 
 	var buf bytes.Buffer
-	if _, err := c.WriteTo(&buf); err != nil {
+	if _, err := pw.WriteTo(&buf); err != nil {
 		s.internal(w, fmt.Errorf("Failed to write plot: %v", err))
 		return
 	}
@@ -122,10 +124,12 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 	io.Copy(w, &buf)
 }
 
-func dateTicks(min, max float64) []plot.Tick {
+type dateTicks struct{}
+
+func (dateTicks) Ticks(min, max float64) []plot.Tick {
 	// TODO: this is surely not the best we can do
 	// but it'll distribute ticks evenly.
-	ticks := plot.DefaultTicks(min, max)
+	ticks := plot.DefaultTicks{}.Ticks(min, max)
 	for i, t := range ticks {
 		if t.Label == "" {
 			// Skip minor ticks.
