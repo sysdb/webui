@@ -29,18 +29,13 @@ package server
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/gonum/plot"
-	"github.com/gonum/plot/plotter"
-	"github.com/gonum/plot/plotutil"
 	"github.com/gonum/plot/vg"
-	"github.com/sysdb/go/client"
-	"github.com/sysdb/go/sysdb"
+	"github.com/sysdb/webui/graph"
 )
 
 var urldate = "20060102150405"
@@ -66,52 +61,15 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 			return
 		}
 	}
-	if start.Equal(end) || start.After(end) {
-		s.badrequest(w, fmt.Errorf("START(%v) is greater than or equal to END(%v)", start, end))
-		return
+	g := &graph.Graph{
+		Start:   start,
+		End:     end,
+		Metrics: [][2]string{{req.args[0], req.args[1]}},
 	}
-
-	q, err := client.QueryString("TIMESERIES %s.%s START %s END %s", req.args[0], req.args[1], start, end)
+	p, err := g.Plot(s.c)
 	if err != nil {
-		s.internal(w, fmt.Errorf("Failed to retrieve graph data: %v", err))
+		s.internal(w, err)
 		return
-	}
-	res, err := s.c.Query(q)
-	if err != nil {
-		s.internal(w, fmt.Errorf("Failed to retrieve graph data: %v", err))
-		return
-	}
-
-	ts, ok := res.(*sysdb.Timeseries)
-	if !ok {
-		s.internal(w, errors.New("TIMESERIES did not return a time-series"))
-		return
-	}
-
-	p, err := plot.New()
-	if err != nil {
-		s.internal(w, fmt.Errorf("Failed to create plot: %v", err))
-		return
-	}
-	p.Add(plotter.NewGrid())
-	p.X.Tick.Marker = dateTicks{}
-
-	var i int
-	for name, data := range ts.Data {
-		pts := make(plotter.XYs, len(data))
-		for i, p := range data {
-			pts[i].X = float64(time.Time(p.Timestamp).UnixNano())
-			pts[i].Y = p.Value
-		}
-		l, err := plotter.NewLine(pts)
-		if err != nil {
-			s.internal(w, fmt.Errorf("Failed to create line plotter: %v", err))
-			return
-		}
-		l.LineStyle.Color = plotutil.DarkColors[i%len(plotutil.DarkColors)]
-		p.Add(l)
-		p.Legend.Add(name, l)
-		i++
 	}
 
 	pw, err := p.WriterTo(vg.Length(500), vg.Length(200), "svg")
@@ -128,22 +86,6 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.WriteHeader(http.StatusOK)
 	io.Copy(w, &buf)
-}
-
-type dateTicks struct{}
-
-func (dateTicks) Ticks(min, max float64) []plot.Tick {
-	// TODO: this is surely not the best we can do
-	// but it'll distribute ticks evenly.
-	ticks := plot.DefaultTicks{}.Ticks(min, max)
-	for i, t := range ticks {
-		if t.Label == "" {
-			// Skip minor ticks.
-			continue
-		}
-		ticks[i].Label = time.Unix(0, int64(t.Value)).Format(time.RFC822)
-	}
-	return ticks
 }
 
 // vim: set tw=78 sw=4 sw=4 noexpandtab :
