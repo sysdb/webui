@@ -39,6 +39,7 @@ import (
 	"github.com/gonum/plot/plotter"
 	"github.com/gonum/plot/plotutil"
 	"github.com/gonum/plot/vg"
+	"github.com/sysdb/go/client"
 	"github.com/sysdb/go/sysdb"
 )
 
@@ -70,13 +71,18 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 		return
 	}
 
-	res, err := s.query("TIMESERIES %s.%s START %s END %s", req.args[0], req.args[1], start, end)
+	q, err := client.QueryString("TIMESERIES %s.%s START %s END %s", req.args[0], req.args[1], start, end)
+	if err != nil {
+		s.internal(w, fmt.Errorf("Failed to retrieve graph data: %v", err))
+		return
+	}
+	res, err := s.c.Query(q)
 	if err != nil {
 		s.internal(w, fmt.Errorf("Failed to retrieve graph data: %v", err))
 		return
 	}
 
-	ts, ok := res.(sysdb.Timeseries)
+	ts, ok := res.(*sysdb.Timeseries)
 	if !ok {
 		s.internal(w, errors.New("TIMESERIES did not return a time-series"))
 		return

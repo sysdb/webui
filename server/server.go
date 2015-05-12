@@ -28,10 +28,10 @@ package server
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -42,12 +42,6 @@ import (
 
 // A Config specifies configuration values for a SysDB web server.
 type Config struct {
-	// Conns is a slice of connections to a SysDB server instance. The number of
-	// elements specifies the maximum number of parallel queries to the backend.
-	// Note that a client connection is not thread-safe but multiple idle
-	// connections don't impose any load on the server.
-	Conns []*client.Conn
-
 	// TemplatePath specifies the relative or absolute location of template files.
 	TemplatePath string
 
@@ -57,7 +51,7 @@ type Config struct {
 
 // A Server implements an http.Handler that serves the SysDB user interface.
 type Server struct {
-	conns chan *client.Conn
+	c *client.Client
 
 	// Request multiplexer
 	mux map[string]handler
@@ -71,25 +65,20 @@ type Server struct {
 }
 
 // New constructs a new SysDB web server using the specified configuration.
-func New(cfg Config) (*Server, error) {
-	if len(cfg.Conns) == 0 {
-		return nil, errors.New("need at least one client connection")
-	}
-
-	s := &Server{
-		conns:   make(chan *client.Conn, len(cfg.Conns)),
-		results: make(map[string]*template.Template),
-	}
-	for _, c := range cfg.Conns {
-		s.conns <- c
-	}
+func New(addr, user string, cfg Config) (*Server, error) {
+	s := &Server{results: make(map[string]*template.Template)}
 
 	var err error
-	s.main, err = cfg.parse("main.tmpl")
-	if err != nil {
+	if s.c, err = client.Connect(addr, user); err != nil {
 		return nil, err
 	}
+	if major, minor, patch, extra, err := s.c.ServerVersion(); err == nil {
+		log.Printf("Connected to SysDB %d.%d.%d%s.", major, minor, patch, extra)
+	}
 
+	if s.main, err = cfg.parse("main.tmpl"); err != nil {
+		return nil, err
+	}
 	types := []string{"host", "hosts", "service", "services", "metric", "metrics"}
 	for _, t := range types {
 		s.results[t], err = cfg.parse(t + ".tmpl")
@@ -216,10 +205,7 @@ func (s *Server) static(w http.ResponseWriter, req request) {
 }
 
 func index(_ request, s *Server) (*page, error) {
-	c := <-s.conns
-	defer func() { s.conns <- c }()
-
-	major, minor, patch, extra, err := c.ServerVersion()
+	major, minor, patch, extra, err := s.c.ServerVersion()
 	if err != nil {
 		return nil, err
 	}
