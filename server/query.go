@@ -59,45 +59,25 @@ func lookup(req request, s *Server) (*page, error) {
 	if req.r.Method != "POST" {
 		return nil, errors.New("Method not allowed")
 	}
-	tokens, err := tokenize(req.r.PostForm.Get("query"))
+	raw, err := parseQuery(req.r.PostForm.Get("query"))
 	if err != nil {
 		return nil, err
 	}
-	if len(tokens) == 0 {
-		return nil, errors.New("Empty query")
-	}
 
-	typ := "hosts"
 	var args string
-	for i, tok := range tokens {
+	for name, value := range raw.args {
 		if len(args) > 0 {
 			args += " AND"
 		}
 
-		if fields := strings.SplitN(tok, ":", 2); len(fields) == 2 {
-			// Query: [<type>:] [<sibling-type>.]<attribute>:<value> ...
-			if i == 0 && fields[1] == "" {
-				typ = fields[0]
-			} else if elems := strings.Split(fields[0], "."); len(elems) > 1 {
-				objs := elems[:len(elems)-1]
-				for _, o := range objs {
-					if o != "host" && o != "service" && o != "metric" {
-						return nil, fmt.Errorf("Invalid object type %q", o)
-					}
-				}
-				args += fmt.Sprintf(" %s.attribute[%s] = %s",
-					strings.Join(objs, "."), proto.EscapeString(elems[len(elems)-1]),
-					proto.EscapeString(fields[1]))
-			} else {
-				args += fmt.Sprintf(" attribute[%s] = %s",
-					proto.EscapeString(fields[0]), proto.EscapeString(fields[1]))
-			}
+		if name == "name" {
+			args += fmt.Sprintf(" name =~ %s", value)
 		} else {
-			args += fmt.Sprintf(" name =~ %s", proto.EscapeString(tok))
+			args += fmt.Sprintf(" %s = %s", name, value)
 		}
 	}
 
-	q, err := client.QueryString("LOOKUP %s MATCHING"+args, client.Identifier(typ))
+	q, err := client.QueryString("LOOKUP %s MATCHING"+args, client.Identifier(raw.typ))
 	if err != nil {
 		return nil, err
 	}
@@ -105,10 +85,10 @@ func lookup(req request, s *Server) (*page, error) {
 	if err != nil {
 		return nil, err
 	}
-	if t, ok := s.results[typ]; ok {
+	if t, ok := s.results[raw.typ]; ok {
 		return tmpl(t, res)
 	}
-	return nil, fmt.Errorf("Unsupported type %s", typ)
+	return nil, fmt.Errorf("Unsupported type %s", raw.typ)
 }
 
 func fetch(req request, s *Server) (*page, error) {
@@ -180,6 +160,69 @@ func metric(req request, res interface{}, s *Server) (*page, error) {
 		res,
 	}
 	return tmpl(s.results["metric"], &p)
+}
+
+type query struct {
+	typ  string
+	args map[string]string
+}
+
+func (q *query) arg(name, value string) error {
+	if _, ok := q.args[name]; ok {
+		return fmt.Errorf("Duplicate key %q", name)
+	}
+	q.args[name] = proto.EscapeString(value)
+	return nil
+}
+
+func (q *query) attr(parent, name, value string) error {
+	var k string
+	if parent != "" {
+		k = fmt.Sprintf("%s.attribute[%s]", parent, proto.EscapeString(name))
+	} else {
+		k = fmt.Sprintf("attribute[%s]", proto.EscapeString(name))
+	}
+
+	return q.arg(k, value)
+}
+
+func parseQuery(s string) (*query, error) {
+	tokens, err := tokenize(s)
+	if err != nil {
+		return nil, err
+	}
+	if len(tokens) == 0 {
+		return nil, errors.New("Empty query")
+	}
+
+	q := &query{typ: "hosts", args: make(map[string]string)}
+	for i, tok := range tokens {
+		if fields := strings.SplitN(tok, ":", 2); len(fields) == 2 {
+			// Query: [<type>:] [<sibling-type>.]<attribute>:<value> ...
+			if i == 0 && fields[1] == "" {
+				q.typ = fields[0]
+			} else if elems := strings.Split(fields[0], "."); len(elems) > 1 {
+				objs := elems[:len(elems)-1]
+				for _, o := range objs {
+					if o != "host" && o != "service" && o != "metric" {
+						return nil, fmt.Errorf("Invalid object type %q", o)
+					}
+				}
+				if err := q.attr(strings.Join(objs, "."), elems[len(elems)-1], fields[1]); err != nil {
+					return nil, err
+				}
+			} else {
+				if err := q.attr("", fields[0], fields[1]); err != nil {
+					return nil, err
+				}
+			}
+		} else {
+			if err := q.arg("name", tok); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return q, nil
 }
 
 // tokenize split the string s into its tokens where a token is either a quoted
