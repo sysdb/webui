@@ -64,7 +64,7 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 	g := &graph.Graph{
 		Start:   start,
 		End:     end,
-		Metrics: [][2]string{{req.args[0], req.args[1]}},
+		Metrics: []graph.Metric{{Hostname: req.args[0], Identifier: req.args[1]}},
 	}
 	p, err := g.Plot(s.c)
 	if err != nil {

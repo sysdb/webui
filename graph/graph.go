@@ -38,13 +38,22 @@ import (
 	"github.com/sysdb/go/sysdb"
 )
 
-// A Graph represents a single graph. It may reference multiple time-series.
+// A Metric represents a single data-source of a graph.
+type Metric struct {
+	// The unique identifier of the metric.
+	Hostname, Identifier string
+
+	// Attributes describing details of the metric.
+	Attributes map[string]string
+}
+
+// A Graph represents a single graph. It may reference multiple data-sources.
 type Graph struct {
 	// Time range of the graph.
 	Start, End time.Time
 
-	// Metrics: {<hostname>, <identifier>}
-	Metrics [][2]string
+	// Content of the graph.
+	Metrics []Metric
 }
 
 type pl struct {
@@ -53,8 +62,9 @@ type pl struct {
 	ts int // Index of the current time-series.
 }
 
-func (p *pl) addTimeseries(c *client.Client, metric [2]string, start, end time.Time) error {
-	q, err := client.QueryString("TIMESERIES %s.%s START %s END %s", metric[0], metric[1], start, end)
+func (p *pl) addTimeseries(c *client.Client, metric Metric, start, end time.Time) error {
+	q, err := client.QueryString("TIMESERIES %s.%s START %s END %s",
+		metric.Hostname, metric.Identifier, start, end)
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve graph data: %v", err)
 	}
