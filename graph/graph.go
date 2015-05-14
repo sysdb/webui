@@ -29,6 +29,7 @@ package graph
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gonum/plot"
@@ -45,6 +46,8 @@ type Metric struct {
 
 	// Attributes describing details of the metric.
 	Attributes map[string]string
+
+	ts *sysdb.Timeseries
 }
 
 // A Graph represents a single graph. It may reference multiple data-sources.
@@ -54,6 +57,9 @@ type Graph struct {
 
 	// Content of the graph.
 	Metrics []Metric
+
+	// List of attributes to group by.
+	GroupBy []string
 }
 
 type pl struct {
@@ -62,23 +68,26 @@ type pl struct {
 	ts int // Index of the current time-series.
 }
 
-func (p *pl) addTimeseries(c *client.Client, metric Metric, start, end time.Time, verbose bool) error {
+func queryTimeseries(c *client.Client, metric Metric, start, end time.Time) (*sysdb.Timeseries, error) {
 	q, err := client.QueryString("TIMESERIES %s.%s START %s END %s",
 		metric.Hostname, metric.Identifier, start, end)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve graph data: %v", err)
+		return nil, fmt.Errorf("Failed to retrieve graph data: %v", err)
 	}
 	res, err := c.Query(q)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve graph data: %v", err)
+		return nil, fmt.Errorf("Failed to retrieve graph data: %v", err)
 	}
 
 	ts, ok := res.(*sysdb.Timeseries)
 	if !ok {
-		return fmt.Errorf("TIMESERIES did not return a time-series but %T", res)
+		return nil, fmt.Errorf("TIMESERIES did not return a time-series but %T", res)
 	}
+	return ts, nil
+}
 
-	for name, data := range ts.Data {
+func (p *pl) addTimeseries(c *client.Client, metric Metric, verbose bool) error {
+	for name, data := range metric.ts.Data {
 		pts := make(plotter.XYs, len(data))
 		for i, p := range data {
 			pts[i].X = float64(time.Time(p.Timestamp).UnixNano())
@@ -102,6 +111,79 @@ func (p *pl) addTimeseries(c *client.Client, metric Metric, start, end time.Time
 	return nil
 }
 
+// sum is an aggregation function that adds ts2 to ts1.
+func sum(ts1, ts2 *sysdb.Timeseries) error {
+	if !ts1.Start.Equal(ts1.Start) || !ts1.End.Equal(ts2.End) {
+		return fmt.Errorf("Timeseries cover different ranges: [%s, %s] != [%s, %s]",
+			ts1.Start, ts1.End, ts2.Start, ts2.End)
+	}
+	if len(ts1.Data) != len(ts2.Data) {
+		return fmt.Errorf("Incompatible time-series: %v != %v", ts1.Data, ts2.Data)
+	}
+
+	for name := range ts1.Data {
+		if len(ts1.Data[name]) != len(ts2.Data[name]) {
+			return fmt.Errorf("Time-series %q is not aligned", name)
+		}
+		for i := range ts1.Data[name] {
+			if !ts1.Data[name][i].Timestamp.Equal(ts2.Data[name][i].Timestamp) {
+				return fmt.Errorf("Time-series %q is not aligned", name)
+			}
+			ts1.Data[name][i].Value += ts2.Data[name][i].Value
+		}
+	}
+	return nil
+}
+
+func (g *Graph) group(c *client.Client, start, end time.Time) ([]Metric, error) {
+	if len(g.GroupBy) == 0 {
+		for i, m := range g.Metrics {
+			var err error
+			if g.Metrics[i].ts, err = queryTimeseries(c, m, g.Start, g.End); err != nil {
+				return nil, err
+			}
+		}
+		return g.Metrics, nil
+	}
+
+	groups := make(map[string][]Metric)
+	for _, m := range g.Metrics {
+		var key string
+		for _, g := range g.GroupBy {
+			key += "\x00" + m.Attributes[g]
+		}
+		groups[key] = append(groups[key], m)
+	}
+
+	var metrics []Metric
+	for name, group := range groups {
+		ts, err := queryTimeseries(c, group[0], g.Start, g.End)
+		if err != nil {
+			return nil, err
+		}
+		host := group[0].Hostname
+		for _, m := range group[1:] {
+			ts2, err := queryTimeseries(c, m, g.Start, g.End)
+			if err != nil {
+				return nil, err
+			}
+			if err := sum(ts, ts2); err != nil {
+				return nil, err
+			}
+			if host != "" && host != m.Hostname {
+				host = ""
+			}
+		}
+
+		metrics = append(metrics, Metric{
+			Hostname:   host,
+			Identifier: strings.Replace(name[1:], "\x00", "-", -1),
+			ts:         ts,
+		})
+	}
+	return metrics, nil
+}
+
 // Plot fetches a graph's time-series data using the specified client and
 // plots it.
 func (g *Graph) Plot(c *client.Client) (*plot.Plot, error) {
@@ -115,8 +197,12 @@ func (g *Graph) Plot(c *client.Client) (*plot.Plot, error) {
 	p.Add(plotter.NewGrid())
 	p.X.Tick.Marker = dateTicks{}
 
-	for _, m := range g.Metrics {
-		if err := p.addTimeseries(c, m, g.Start, g.End, len(g.Metrics) > 1); err != nil {
+	metrics, err := g.group(c, g.Start, g.End)
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range metrics {
+		if err := p.addTimeseries(c, m, len(g.Metrics) > 1); err != nil {
 			return nil, err
 		}
 	}
