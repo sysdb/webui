@@ -62,7 +62,7 @@ type pl struct {
 	ts int // Index of the current time-series.
 }
 
-func (p *pl) addTimeseries(c *client.Client, metric Metric, start, end time.Time) error {
+func (p *pl) addTimeseries(c *client.Client, metric Metric, start, end time.Time, verbose bool) error {
 	q, err := client.QueryString("TIMESERIES %s.%s START %s END %s",
 		metric.Hostname, metric.Identifier, start, end)
 	if err != nil {
@@ -92,7 +92,11 @@ func (p *pl) addTimeseries(c *client.Client, metric Metric, start, end time.Time
 		l.LineStyle.Color = plotutil.DarkColors[p.ts%len(plotutil.DarkColors)]
 
 		p.Add(l)
-		p.Legend.Add(name, l)
+		if verbose {
+			p.Legend.Add(fmt.Sprintf("%s %s %s", metric.Hostname, metric.Identifier, name), l)
+		} else {
+			p.Legend.Add(name, l)
+		}
 		p.ts++
 	}
 	return nil
@@ -112,7 +116,7 @@ func (g *Graph) Plot(c *client.Client) (*plot.Plot, error) {
 	p.X.Tick.Marker = dateTicks{}
 
 	for _, m := range g.Metrics {
-		if err := p.addTimeseries(c, m, g.Start, g.End); err != nil {
+		if err := p.addTimeseries(c, m, g.Start, g.End, len(g.Metrics) > 1); err != nil {
 			return nil, err
 		}
 	}
