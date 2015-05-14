@@ -9,7 +9,7 @@
 		       class="query" placeholder="Group by" />
 	</form><br />
 {{if .Metrics}}
-	<img src="/graph/q{{urlquery .QueryOptions}}/{{.Metrics}}" border="0" />
+	<img src="/graph/q{{urlquery .QueryOptions}}/{{urlquery .Metrics}}" border="0" />
 {{end}}
 	<p>&nbsp;</p>
 </section>
