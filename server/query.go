@@ -64,6 +64,9 @@ func lookup(req request, s *Server) (*page, error) {
 		return nil, err
 	}
 
+	if raw.typ == "" {
+		raw.typ = "hosts"
+	}
 	var args string
 	for name, value := range raw.args {
 		if len(args) > 0 {
@@ -124,6 +127,19 @@ func fetch(req request, s *Server) (*page, error) {
 		return metric(req, res, s)
 	}
 	return tmpl(s.results[req.cmd], res)
+}
+
+func graphs(req request, s *Server) (*page, error) {
+	p := struct {
+		Query, Metrics string
+	}{
+		Query: req.r.PostForm.Get("metrics-query"),
+	}
+
+	if req.r.Method == "POST" {
+		p.Metrics = p.Query
+	}
+	return tmpl(s.results["graphs"], &p)
 }
 
 var datetime = "2006-01-02 15:04:05"
@@ -195,7 +211,7 @@ func parseQuery(s string) (*query, error) {
 		return nil, errors.New("Empty query")
 	}
 
-	q := &query{typ: "hosts", args: make(map[string]string)}
+	q := &query{args: make(map[string]string)}
 	for i, tok := range tokens {
 		if fields := strings.SplitN(tok, ":", 2); len(fields) == 2 {
 			// Query: [<type>:] [<sibling-type>.]<attribute>:<value> ...

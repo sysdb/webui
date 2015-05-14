@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/gonum/plot/vg"
+	"github.com/sysdb/go/sysdb"
 	"github.com/sysdb/webui/graph"
 )
 
@@ -61,11 +62,20 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 			return
 		}
 	}
+
 	g := &graph.Graph{
-		Start:   start,
-		End:     end,
-		Metrics: []graph.Metric{{Hostname: req.args[0], Identifier: req.args[1]}},
+		Start: start,
+		End:   end,
 	}
+	if req.args[0] == "q" {
+		if g.Metrics, err = s.queryMetrics(req.args[1]); err != nil {
+			s.badrequest(w, fmt.Errorf("Failed to query metrics: %v", err))
+			return
+		}
+	} else {
+		g.Metrics = []graph.Metric{{Hostname: req.args[0], Identifier: req.args[1]}}
+	}
+
 	p, err := g.Plot(s.c)
 	if err != nil {
 		s.internal(w, err)
@@ -86,6 +96,45 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.WriteHeader(http.StatusOK)
 	io.Copy(w, &buf)
+}
+
+func (s *Server) queryMetrics(q string) ([]graph.Metric, error) {
+	raw, err := parseQuery(q)
+	if err != nil {
+		return nil, err
+	}
+	if raw.typ != "" && raw.typ != "metrics" {
+		return nil, fmt.Errorf("Invalid object type %q for graphs", raw.typ)
+	}
+
+	var args string
+	for name, value := range raw.args {
+		if len(args) > 0 {
+			args += " AND"
+		}
+
+		if name == "name" {
+			args += fmt.Sprintf(" name =~ %s", value)
+		} else {
+			args += fmt.Sprintf(" %s = %s", name, value)
+		}
+	}
+
+	res, err := s.c.Query("LOOKUP metrics MATCHING" + args)
+	if err != nil {
+		return nil, err
+	}
+	hosts, ok := res.([]sysdb.Host)
+	if !ok {
+		return nil, fmt.Errorf("LOOKUP did not return a list of hosts but %T", res)
+	}
+	var metrics []graph.Metric
+	for _, h := range hosts {
+		for _, m := range h.Metrics {
+			metrics = append(metrics, graph.Metric{Hostname: h.Name, Identifier: m.Name})
+		}
+	}
+	return metrics, nil
 }
 
 // vim: set tw=78 sw=4 sw=4 noexpandtab :

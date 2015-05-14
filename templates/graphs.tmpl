@@ -1,0 +1,12 @@
+<section>
+	<h1>Graphs</h1>
+	<form action="/graphs" method="POST">
+		<input type="text" name="metrics-query" value="{{.Query}}"
+		       class="query" placeholder="Search metrics" required />
+		<button type="submit">GO</button>
+	</form><br />
+{{if .Metrics}}
+	<img src="/graph/q/{{.Metrics}}" border="0" />
+{{end}}
+	<p>&nbsp;</p>
+</section>

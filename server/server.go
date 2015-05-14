@@ -79,7 +79,7 @@ func New(addr, user string, cfg Config) (*Server, error) {
 	if s.main, err = cfg.parse("main.tmpl"); err != nil {
 		return nil, err
 	}
-	types := []string{"host", "hosts", "service", "services", "metric", "metrics"}
+	types := []string{"graphs", "host", "hosts", "service", "services", "metric", "metrics"}
 	for _, t := range types {
 		s.results[t], err = cfg.parse(t + ".tmpl")
 		if err != nil {
@@ -120,6 +120,7 @@ var content = map[string]func(request, *Server) (*page, error){
 	"": index,
 
 	// Queries
+	"graphs":   graphs,
 	"host":     fetch,
 	"service":  fetch,
 	"metric":   fetch,
