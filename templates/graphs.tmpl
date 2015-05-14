@@ -1,12 +1,16 @@
 <section>
 	<h1>Graphs</h1>
 	<form action="/graphs" method="POST">
-		<input type="text" name="metrics-query" value="{{.Query}}"
+		<p><input type="text" name="metrics-query" value="{{.Query}}"
 		       class="query" placeholder="Search metrics" required />
-		<button type="submit">GO</button>
-		<br />
-		<input type="text" name="group-by" value="{{.GroupBy}}"
-		       class="query" placeholder="Group by" />
+		<button type="submit">GO</button></p>
+{{if .Attributes}}
+	<p><b>Group by:</b>
+	{{range $a, $v := .Attributes}}
+		<input type="checkbox" name="group-by" value="{{$a}}" {{if $v}}checked{{end}} />{{$a}}
+	{{end}}
+	</p>
+{{end}}
 	</form><br />
 {{if .Metrics}}
 	<img src="/graph/q{{urlquery .QueryOptions}}/{{urlquery .Metrics}}" border="0" />

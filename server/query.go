@@ -133,16 +133,35 @@ func graphs(req request, s *Server) (*page, error) {
 	p := struct {
 		Query, Metrics string
 		QueryOptions   string
-		GroupBy        string
+		GroupBy        []string
+		Attributes     map[string]bool
 	}{
 		Query:   req.r.PostForm.Get("metrics-query"),
-		GroupBy: req.r.PostForm.Get("group-by"),
+		GroupBy: req.r.PostForm["group-by"],
 	}
 
 	if req.r.Method == "POST" {
 		p.Metrics = p.Query
-		if p.GroupBy != "" {
-			p.QueryOptions += "/g=" + strings.Join(strings.Fields(p.GroupBy), ",")
+		if len(p.GroupBy) > 0 {
+			p.QueryOptions += "/g=" + strings.Join(p.GroupBy, ",")
+		}
+
+		metrics, err := s.queryMetrics(p.Query)
+		if err != nil {
+			return nil, err
+		}
+		p.Attributes = make(map[string]bool)
+		for _, m := range metrics {
+			for a := range m.Attributes {
+				var checked bool
+				for _, g := range p.GroupBy {
+					if a == g {
+						checked = true
+						break
+					}
+				}
+				p.Attributes[a] = checked
+			}
 		}
 	}
 	return tmpl(s.results["graphs"], &p)
