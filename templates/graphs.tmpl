@@ -4,9 +4,12 @@
 		<input type="text" name="metrics-query" value="{{.Query}}"
 		       class="query" placeholder="Search metrics" required />
 		<button type="submit">GO</button>
+		<br />
+		<input type="text" name="group-by" value="{{.GroupBy}}"
+		       class="query" placeholder="Group by" />
 	</form><br />
 {{if .Metrics}}
-	<img src="/graph/q/{{.Metrics}}" border="0" />
+	<img src="/graph/q{{urlquery .QueryOptions}}/{{.Metrics}}" border="0" />
 {{end}}
 	<p>&nbsp;</p>
 </section>

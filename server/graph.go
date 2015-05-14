@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gonum/plot/vg"
@@ -67,10 +68,20 @@ func (s *Server) graph(w http.ResponseWriter, req request) {
 		Start: start,
 		End:   end,
 	}
-	if req.args[0] == "q" {
+	if req.args[0] == "q" || len(req.args[0]) > 1 && req.args[0][:2] == "q/" {
 		if g.Metrics, err = s.queryMetrics(req.args[1]); err != nil {
 			s.badrequest(w, fmt.Errorf("Failed to query metrics: %v", err))
 			return
+		}
+
+		if req.args[0] != "q" {
+			for _, arg := range strings.Split(req.args[0][2:], "/") {
+				if arg := strings.SplitN(arg, "=", 2); len(arg) == 2 {
+					if arg[0] == "g" {
+						g.GroupBy = strings.Split(arg[1], ",")
+					}
+				}
+			}
 		}
 	} else {
 		g.Metrics = []graph.Metric{{Hostname: req.args[0], Identifier: req.args[1]}}
@@ -131,7 +142,15 @@ func (s *Server) queryMetrics(q string) ([]graph.Metric, error) {
 	var metrics []graph.Metric
 	for _, h := range hosts {
 		for _, m := range h.Metrics {
-			metrics = append(metrics, graph.Metric{Hostname: h.Name, Identifier: m.Name})
+			metric := graph.Metric{
+				Hostname:   h.Name,
+				Identifier: m.Name,
+				Attributes: make(map[string]string),
+			}
+			for _, attr := range m.Attributes {
+				metric.Attributes[attr.Name] = attr.Value
+			}
+			metrics = append(metrics, metric)
 		}
 	}
 	return metrics, nil

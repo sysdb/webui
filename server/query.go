@@ -132,12 +132,18 @@ func fetch(req request, s *Server) (*page, error) {
 func graphs(req request, s *Server) (*page, error) {
 	p := struct {
 		Query, Metrics string
+		QueryOptions   string
+		GroupBy        string
 	}{
-		Query: req.r.PostForm.Get("metrics-query"),
+		Query:   req.r.PostForm.Get("metrics-query"),
+		GroupBy: req.r.PostForm.Get("group-by"),
 	}
 
 	if req.r.Method == "POST" {
 		p.Metrics = p.Query
+		if p.GroupBy != "" {
+			p.QueryOptions += "/g=" + strings.Join(strings.Fields(p.GroupBy), ",")
+		}
 	}
 	return tmpl(s.results["graphs"], &p)
 }
