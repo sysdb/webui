@@ -29,6 +29,7 @@ package graph
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -146,17 +147,23 @@ func (g *Graph) group(c *client.Client, start, end time.Time) ([]Metric, error) 
 		return g.Metrics, nil
 	}
 
+	names := make([]string, 0)
 	groups := make(map[string][]Metric)
 	for _, m := range g.Metrics {
 		var key string
 		for _, g := range g.GroupBy {
 			key += "\x00" + m.Attributes[g]
 		}
+		if _, ok := groups[key]; !ok {
+			names = append(names, key)
+		}
 		groups[key] = append(groups[key], m)
 	}
+	sort.Strings(names)
 
 	var metrics []Metric
-	for name, group := range groups {
+	for _, name := range names {
+		group := groups[name]
 		ts, err := queryTimeseries(c, group[0], g.Start, g.End)
 		if err != nil {
 			return nil, err
