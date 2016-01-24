@@ -4,7 +4,7 @@
 	<table class="results">
 		<tr><th>Host</th><th>Last update</th></tr>
 	{{range .}}
-		<tr><td><a href="/host/{{urlquery .Name}}">{{.Name}}</a></td><td>{{.LastUpdate}}</td></tr>
+		<tr><td><a href="{{root}}host/{{urlquery .Name}}">{{.Name}}</a></td><td>{{.LastUpdate}}</td></tr>
 	{{end}}
 	</table>
 {{else}}

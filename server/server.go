@@ -47,6 +47,9 @@ type Config struct {
 
 	// StaticPath specifies the relative or absolute location of static files.
 	StaticPath string
+
+	// Root mount point of the server.
+	Root string
 }
 
 // A Server implements an http.Handler that serves the SysDB user interface.
@@ -62,11 +65,21 @@ type Server struct {
 
 	// Base directory of static files.
 	basedir string
+
+	// Root mount point.
+	root string
 }
 
 // New constructs a new SysDB web server using the specified configuration.
 func New(addr, user string, cfg Config) (*Server, error) {
-	s := &Server{results: make(map[string]*template.Template)}
+	s := &Server{
+		results: make(map[string]*template.Template),
+		basedir: cfg.StaticPath,
+		root:    cfg.Root,
+	}
+	if s.root == "" {
+		s.root = "/"
+	}
 
 	var err error
 	if s.c, err = client.Connect(addr, user); err != nil {
@@ -76,18 +89,17 @@ func New(addr, user string, cfg Config) (*Server, error) {
 		log.Printf("Connected to SysDB %d.%d.%d%s.", major, minor, patch, extra)
 	}
 
-	if s.main, err = cfg.parse("main.tmpl"); err != nil {
+	if s.main, err = cfg.parse(s, "main.tmpl"); err != nil {
 		return nil, err
 	}
 	types := []string{"graphs", "host", "hosts", "service", "services", "metric", "metrics"}
 	for _, t := range types {
-		s.results[t], err = cfg.parse(t + ".tmpl")
+		s.results[t], err = cfg.parse(s, t+".tmpl")
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	s.basedir = cfg.StaticPath
 	s.mux = map[string]handler{
 		"images": s.static,
 		"style":  s.static,
@@ -96,8 +108,10 @@ func New(addr, user string, cfg Config) (*Server, error) {
 	return s, nil
 }
 
-func (cfg Config) parse(name string) (*template.Template, error) {
-	t := template.New(filepath.Base(name))
+func (cfg Config) parse(s *Server, name string) (*template.Template, error) {
+	t := template.New(filepath.Base(name)).Funcs(template.FuncMap{
+		"root": s.Root,
+	})
 	return t.ParseFiles(filepath.Join(cfg.TemplatePath, name))
 }
 
@@ -134,6 +148,13 @@ var content = map[string]func(request, *Server) (*page, error){
 // the SysDB user interface.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.RequestURI
+	if !strings.HasPrefix(path, s.root) {
+		s.notfound(w, r)
+		return
+	}
+	path = strings.TrimPrefix(path, s.root)
+	r.URL.Path = strings.TrimPrefix(r.URL.Path, s.root)
+
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
 	}
@@ -203,6 +224,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // static serves static content.
 func (s *Server) static(w http.ResponseWriter, req request) {
 	http.ServeFile(w, req.r, filepath.Clean(filepath.Join(s.basedir, req.r.URL.Path)))
+}
+
+// Root returns the root mount point of the server suitable for use as a path
+// prefix.
+func (s *Server) Root() string {
+	if s.root[len(s.root)-1] == '/' {
+		return s.root
+	}
+	return s.root + "/"
 }
 
 func index(_ request, s *Server) (*page, error) {

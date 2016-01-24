@@ -36,7 +36,7 @@ import (
 )
 
 func (s *Server) notfound(w http.ResponseWriter, r *http.Request) {
-	s.err(w, http.StatusNotFound, fmt.Errorf("%s not found", r.RequestURI))
+	s.err(w, http.StatusNotFound, fmt.Errorf("%s not found", r.URL.Path))
 }
 
 func (s *Server) badrequest(w http.ResponseWriter, err error) {

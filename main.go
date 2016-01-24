@@ -44,6 +44,8 @@ var (
 	listen = flag.String("listen", ":8080", "address to listen for incoming connections")
 	tmpl   = flag.String("template-path", "templates", "location of template files")
 	static = flag.String("static-path", "static", "location of static files")
+
+	root = flag.String("root", "/", "root mount point of the server")
 )
 
 func init() {
@@ -65,13 +67,14 @@ func main() {
 	srv, err := server.New(*addr, *username, server.Config{
 		TemplatePath: *tmpl,
 		StaticPath:   *static,
+		Root:         *root,
 	})
 	if err != nil {
 		fatalf("Failed to construct web-server: %v", err)
 	}
 
 	log.Printf("Listening on %s.", *listen)
-	http.Handle("/", srv)
+	http.Handle(*root, srv)
 	err = http.ListenAndServe(*listen, nil)
 	if err != nil {
 		fatalf("Failed to set up HTTP server on address %q: %v", *listen, err)

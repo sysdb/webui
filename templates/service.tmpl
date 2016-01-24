@@ -1,7 +1,7 @@
 <section>{{$s := index .Services 0}}
 	<h1>Service {{$.Name}} &mdash; {{$s.Name}}</h1>
 	<table class="results">
-		<tr><td><b>Host</b></td><td><a href="/host/{{urlquery $.Name}}">{{$.Name}}</a></td></tr>
+		<tr><td><b>Host</b></td><td><a href="{{root}}host/{{urlquery $.Name}}">{{$.Name}}</a></td></tr>
 		<tr><td><b>Last update</b></td><td>{{$s.LastUpdate}}</td></tr>
 		<tr><td><b>Update interval</b></td><td>{{$s.UpdateInterval}}</td></tr>
 		<tr><td><b>Backends</b></td><td>{{$s.Backends}}</td></tr>

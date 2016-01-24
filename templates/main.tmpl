@@ -10,8 +10,8 @@
 
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
-	<link rel="stylesheet" href="/style/main.css" type="text/css" />
-	<link rel="icon" href="/images/favicon.png" type="images/png" />
+	<link rel="stylesheet" href="{{root}}style/main.css" type="text/css" />
+	<link rel="icon" href="{{root}}images/favicon.png" type="images/png" />
 </head>
 
 <body>
@@ -21,11 +21,11 @@
 		</div>
 		<div class="searchbar">
 			<div class="logo">
-				<a href="/"><img src="/images/owl.png" alt="[SysDB]" class="logo" /></a>
+				<a href="{{root}}"><img src="{{root}}images/owl.png" alt="[SysDB]" class="logo" /></a>
 			</div>
 
 			<div class="searchbox">
-				<form action="/lookup" method="POST">
+				<form action="{{root}}lookup" method="POST">
 					<input type="text" name="query" value="{{.Query}}" placeholder="Search objects"
 						required /><button type="submit">GO</button>
 				</form>
@@ -35,10 +35,10 @@
 
 	<div class="main">
 		<aside><nav>
-			<a href="/hosts">Hosts</a>
-			<a href="/services">Services</a>
-			<a href="/metrics">Metrics</a>
-			<a href="/graphs">Graphs</a>
+			<a href="{{root}}hosts">Hosts</a>
+			<a href="{{root}}services">Services</a>
+			<a href="{{root}}metrics">Metrics</a>
+			<a href="{{root}}graphs">Graphs</a>
 		</nav></aside>
 
 		<div class="content">
