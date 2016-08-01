@@ -112,24 +112,63 @@ func (p *pl) addTimeseries(c *client.Client, metric Metric, verbose bool) error 
 	return nil
 }
 
-// sum is an aggregation function that adds ts2 to ts1.
-func sum(ts1, ts2 *sysdb.Timeseries) error {
-	if !ts1.Start.Equal(ts1.Start) || !ts1.End.Equal(ts2.End) {
-		return fmt.Errorf("Timeseries cover different ranges: [%s, %s] != [%s, %s]",
+// align aligns two timeseries such that start and end times and the step
+// sizes match.
+func align(ts1, ts2 *sysdb.Timeseries) error {
+	if len(ts1.Data) != len(ts2.Data) {
+		return fmt.Errorf("mismatching data sources: %v != %v", ts1.Data, ts2.Data)
+	}
+
+	start := time.Time(ts1.Start)
+	if t := time.Time(ts2.Start); t.After(start) {
+		start = t
+	}
+	end := time.Time(ts1.End)
+	if t := time.Time(ts2.End); t.Before(end) {
+		end = t
+	}
+	if end.Before(start) {
+		return fmt.Errorf("non-overlapping ranges: [%v, %v] <-> [%v, %v]",
 			ts1.Start, ts1.End, ts2.Start, ts2.End)
 	}
-	if len(ts1.Data) != len(ts2.Data) {
-		return fmt.Errorf("Incompatible time-series: %v != %v", ts1.Data, ts2.Data)
+
+	range1 := time.Time(ts1.End).Sub(time.Time(ts1.Start))
+	range2 := time.Time(ts2.End).Sub(time.Time(ts2.Start))
+	for name := range ts1.Data {
+		l1, l2 := len(ts1.Data[name]), len(ts2.Data[name])
+		if l1 <= 1 || l2 <= 1 {
+			if l1 == l2 && range1 == range2 {
+				continue
+			}
+			return fmt.Errorf("invalid value count for %q: %d != %d", name, l1, l2)
+		}
+
+		step1, step2 := range1/time.Duration(l1-1), range2/time.Duration(l2-1)
+		if step1 != step2 || step1 <= 0 {
+			return fmt.Errorf("mismatching steps sizes for %q: %v != %v", name, step1, step2)
+		}
+
+		for _, ts := range []*sysdb.Timeseries{ts1, ts2} {
+			a := start.Sub(time.Time(ts.Start)) / step1
+			b := end.Sub(time.Time(ts.Start)) / step1
+			ts.Data[name] = ts.Data[name][a : b+1]
+		}
+	}
+
+	ts1.Start, ts2.Start = sysdb.Time(start), sysdb.Time(start)
+	ts1.End, ts2.End = sysdb.Time(end), sysdb.Time(end)
+	return nil
+}
+
+// sum is an aggregation function that adds ts2 to ts1. The timeseries will be
+// aligned.
+func sum(ts1, ts2 *sysdb.Timeseries) error {
+	if err := align(ts1, ts2); err != nil {
+		return fmt.Errorf("Incompatible time-series: %v", err)
 	}
 
 	for name := range ts1.Data {
-		if len(ts1.Data[name]) != len(ts2.Data[name]) {
-			return fmt.Errorf("Time-series %q is not aligned", name)
-		}
 		for i := range ts1.Data[name] {
-			if !ts1.Data[name][i].Timestamp.Equal(ts2.Data[name][i].Timestamp) {
-				return fmt.Errorf("Time-series %q is not aligned", name)
-			}
 			ts1.Data[name][i].Value += ts2.Data[name][i].Value
 		}
 	}
